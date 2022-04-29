@@ -67,7 +67,7 @@ class EksStack(Stack):
         _owner_role = aws_iam.Role(
             scope=self,
             id='EksClusterOwnerRole',
-            role_name='EkeHandsOnEksClusterOwnerRole',  # スペルミス XXXXXXXXXX
+            role_name='EksHandsOnEksClusterOwnerRole',
             assumed_by=aws_iam.AccountRootPrincipal()
         )
 
@@ -183,8 +183,6 @@ class EksStack(Stack):
             name='aws-load-balancer-controller',  # 名前は固定
             namespace='kube-system',
         )
-        # 最新版ではひつようないじゃん
-        # service_account_annotated = self.add_helm_annotation(cluster, alb_service_account)
 
         statements = []
         with open('./policies/aws-load-balancer-controller-iam-policy.json') as f:
@@ -195,10 +193,9 @@ class EksStack(Stack):
         policy = aws_iam.Policy(self, 'AWSLoadBalancerControllerIAMPolicy', statements=statements)
         policy.attach_to_role(alb_service_account.role)
 
-        # ---- これでいいんじゃない？
+        # ---- これでいいんじゃない？  AWSLoadBalancerControllerIAMPolicyなんて無い！
         # sa.role.addManagedPolicy({
-        #     managedPolicyArn: `arn: aws:iam::${Aws.ACCOUNT_ID}: policy / AWSLoadBalancerControllerIAMPolicy
-        # `
+        #     managedPolicyArn: `arn: aws:iam::${Aws.ACCOUNT_ID}:policy/AWSLoadBalancerControllerIAMPolicy'
         # });
 
         aws_lb_controller = cluster.add_helm_chart(
@@ -218,33 +215,6 @@ class EksStack(Stack):
                     }
                 }
             }
-        )
-        # aws_lb_controller.node.add_dependency(alb_service_account) # 削除
-
-    def add_helm_annotation(self, cluster, service_account):
-        # work around
-        # add helm role to service account
-        return aws_eks.KubernetesManifest(
-            self,
-            "ServiceAccount",
-            cluster=cluster,
-            manifest=[{
-                "apiVersion": "v1",
-                "kind": "ServiceAccount",
-                "metadata": {
-                    "name": service_account.service_account_name,
-                    "namespace": service_account.service_account_namespace,
-                    "labels": {
-                        "app.kubernetes.io/name": service_account.service_account_name,
-                        "app.kubernetes.io/managed-by": "Helm",
-                    },
-                    "annotations": {
-                        "eks.amazonaws.com/role-arn": service_account.role.role_arn,
-                        "meta.helm.sh/release-name": service_account.service_account_name,
-                        "meta.helm.sh/release-namespace": service_account.service_account_namespace,
-                    },
-                }
-            }]
         )
 
     def deploy_frontend(self, cluster):
